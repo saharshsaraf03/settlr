@@ -1,16 +1,17 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { LandingPage } from '@/pages/LandingPage'
-import { LoginPage } from '@/pages/LoginPage'
-import { SignupPage } from '@/pages/SignupPage'
 import { SetupProfilePage } from '@/pages/SetupProfilePage'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { AppLayout } from '@/components/AppLayout'
+import { DashboardPage } from '@/pages/DashboardPage'
+import { GroupDetailPage } from '@/pages/GroupDetailPage'
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignupPage />} />
+      <Route path="/login" element={<Navigate to="/" replace />} />
+      <Route path="/signup" element={<Navigate to="/" replace />} />
       <Route
         path="/setup-profile"
         element={
@@ -23,12 +24,42 @@ function App() {
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <div className="min-h-screen bg-[#0d1117] flex items-center justify-center">
-              <p className="text-[#8b949e] text-lg">Dashboard coming soon</p>
-            </div>
+            <AppLayout />
           </ProtectedRoute>
         }
-      />
+      >
+        <Route index element={<DashboardPage />} />
+      </Route>
+      <Route
+        path="/groups/:id"
+        element={
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<GroupDetailPage />} />
+      </Route>
+      <Route
+        path="/activity"
+        element={
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<div className="p-8 text-white">Recent Activity coming soon</div>} />
+      </Route>
+      <Route
+        path="/expenses"
+        element={
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<div className="p-8 text-white">All Expenses coming soon</div>} />
+      </Route>
     </Routes>
   )
 }
