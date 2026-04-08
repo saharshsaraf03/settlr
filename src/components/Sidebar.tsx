@@ -95,13 +95,17 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
 
       {/* Groups */}
       <div className="px-3">
-        <button
-          className="w-full flex items-center justify-between px-3 py-2 text-white/40 text-xs uppercase tracking-wider hover:text-white/60 transition-colors"
+        <div
+          className="w-full flex items-center justify-between px-3 py-2 text-white/40 text-xs uppercase tracking-wider hover:text-white/60 transition-colors cursor-pointer"
           onClick={() => setGroupsExpanded(!groupsExpanded)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={e => e.key === 'Enter' && setGroupsExpanded(!groupsExpanded)}
         >
           <span>Groups</span>
           <div className="flex items-center gap-1">
             <button
+              type="button"
               onClick={(e) => { e.stopPropagation(); setShowAddGroup(!showAddGroup); }}
               className="flex items-center gap-1 text-[#1cc29f] hover:text-[#1aad8e] text-xs"
             >
@@ -110,7 +114,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
             </button>
             <ChevronDown className={`w-3 h-3 transition-transform ${groupsExpanded ? '' : '-rotate-90'}`} />
           </div>
-        </button>
+        </div>
 
         <AnimatePresence>
           {showAddGroup && (

@@ -33,7 +33,9 @@ export function AddExpenseModal({ isOpen, onClose, defaultGroupId }: AddExpenseM
   const [splitType, setSplitType] = useState<SplitType>('equal');
   const [exactSplits, setExactSplits] = useState<Record<string, string>>({});
   const [percentSplits, setPercentSplits] = useState<Record<string, string>>({});
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const selectedGroup = groups.find(g => g.id === groupId);
   const groupMembers = users.filter(u => selectedGroup?.members.includes(u.id));
@@ -67,27 +69,41 @@ export function AddExpenseModal({ isOpen, onClose, defaultGroupId }: AddExpenseM
     return Math.abs(percentTotal - 100) < 0.01;
   };
 
-  const handleSubmit = async (e: { preventDefault: () => void }) => {
-    e.preventDefault();
-    if (!description || !amount || !groupId || !isValidSplit()) return;
-    setLoading(true);
-    await new Promise(r => setTimeout(r, 600));
-    addExpense({
-      description,
-      amount: total,
-      currency,
-      paidBy,
-      date: new Date().toISOString().split('T')[0],
-      category,
-      splits: getSplits(),
-      groupId,
-    });
-    setLoading(false);
+  const resetForm = () => {
     setDescription('');
     setAmount('');
     setExactSplits({});
     setPercentSplits({});
     setSplitType('equal');
+    setError('');
+    setDate(new Date().toISOString().split('T')[0]);
+  };
+
+  const handleSubmit = (e: { preventDefault: () => void }) => {
+    e.preventDefault();
+    if (!description || !amount || !groupId || !isValidSplit()) return;
+    setLoading(true);
+    setError('');
+    addExpense(
+      {
+        description,
+        amount: total,
+        currency,
+        paidBy,
+        date,
+        category,
+        splits: getSplits(),
+        groupId,
+      },
+      (err) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        setError(msg || 'Failed to add expense');
+        setLoading(false);
+      }
+    );
+    // Optimistically close — onSuccess invalidates queries and UI updates
+    setLoading(false);
+    resetForm();
     onClose();
   };
 
@@ -341,11 +357,16 @@ export function AddExpenseModal({ isOpen, onClose, defaultGroupId }: AddExpenseM
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                   <input
                     type="date"
-                    defaultValue={new Date().toISOString().split('T')[0]}
+                    value={date}
+                    onChange={e => setDate(e.target.value)}
                     className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-[#1cc29f]/50 transition-all"
                   />
                 </div>
               </div>
+
+              {error && (
+                <p className="text-xs text-center" style={{ color: '#FF6B6B' }}>{error}</p>
+              )}
 
               {/* Actions */}
               <div className="flex gap-3 pt-2">

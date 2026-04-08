@@ -22,7 +22,7 @@ interface AppContextType {
   groups: Group[];
   login: () => void;
   logout: () => void;
-  addExpense: (expense: Omit<Expense, 'id'>) => void;
+  addExpense: (expense: Omit<Expense, 'id'>, onError?: (err: unknown) => void) => void;
   addGroup: (group: Omit<Group, 'id' | 'expenses'>, onError?: (err: unknown) => void) => void;
   settleUp: (fromUserId: string, toUserId: string, amount: number, groupId?: string) => void;
   getUserById: (id: string) => User | undefined;
@@ -167,11 +167,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         amount_owed: s.amount,
         is_settled: false,
       }));
-      await supabase.from('expense_splits').insert(splits);
+      const { error: splitsError } = await supabase.from('expense_splits').insert(splits);
+      if (splitsError) throw splitsError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
       queryClient.invalidateQueries({ queryKey: ['groups'] });
+    },
+    onError: (err: unknown) => {
+      const e = err as { code?: string; message?: string };
+      console.error('[Settlr] addExpense failed:', e.code, e.message ?? String(err));
     },
   });
 
@@ -273,7 +278,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       groups: groupsData,
       login: () => {},
       logout: signOut,
-      addExpense: (e) => addExpenseMutation.mutate(e),
+      addExpense: (e, onError) => addExpenseMutation.mutate(e, { onError }),
       addGroup: (g, onError) => addGroupMutation.mutate(g, { onError }),
       settleUp: (f, t, a, g) => settleUpMutation.mutate({ fromUserId: f, toUserId: t, amount: a, groupId: g }),
       getUserById,
