@@ -1,6 +1,6 @@
 import React, { createContext, useContext } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
 import type { User, Expense, Group, ExpenseCategory, ExpenseSplit } from '../types/index';
 
@@ -23,7 +23,7 @@ interface AppContextType {
   login: () => void;
   logout: () => void;
   addExpense: (expense: Omit<Expense, 'id'>) => void;
-  addGroup: (group: Omit<Group, 'id' | 'expenses'>) => void;
+  addGroup: (group: Omit<Group, 'id' | 'expenses'>, onError?: (err: unknown) => void) => void;
   settleUp: (fromUserId: string, toUserId: string, amount: number, groupId?: string) => void;
   getUserById: (id: string) => User | undefined;
   getGroupById: (id: string) => Group | undefined;
@@ -177,25 +177,40 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addGroupMutation = useMutation({
     mutationFn: async (group: Omit<Group, 'id' | 'expenses'>) => {
-      const { data: newGroup, error } = await supabase
+      if (!user?.id) throw new Error('Not authenticated');
+
+      const inviteCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+      const payload = {
+        name: group.name,
+        emoji: group.emoji || '🏠',
+        color: group.color || '#1cc29f',
+        created_by: user.id,
+        invite_code: inviteCode,
+      };
+
+      const { data: inserted, error } = await supabase
         .from('groups')
-        .insert({
-          name: group.name,
-          emoji: group.emoji,
-          color: group.color,
-          created_by: user!.id,
-        })
-        .select()
-        .single();
+        .insert(payload)
+        .select();
+
+      const newGroup = inserted?.[0] ?? null;
       if (error) throw error;
-      await supabase.from('group_members').insert({
+      if (!newGroup) throw new Error('Insert returned no data');
+
+      const { error: memberError } = await supabase.from('group_members').insert({
         group_id: newGroup.id,
-        user_id: user!.id,
+        user_id: user.id,
         role: 'admin',
       });
+
+      if (memberError) throw memberError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['groups'] });
+    },
+    onError: (err: unknown) => {
+      const e = err as { code?: string; message?: string };
+      console.error('[Settlr] addGroup failed:', e.code, e.message ?? String(err));
     },
   });
 
@@ -259,7 +274,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       login: () => {},
       logout: signOut,
       addExpense: (e) => addExpenseMutation.mutate(e),
-      addGroup: (g) => addGroupMutation.mutate(g),
+      addGroup: (g, onError) => addGroupMutation.mutate(g, { onError }),
       settleUp: (f, t, a, g) => settleUpMutation.mutate({ fromUserId: f, toUserId: t, amount: a, groupId: g }),
       getUserById,
       getGroupById,

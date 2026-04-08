@@ -18,6 +18,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const [friendsExpanded, setFriendsExpanded] = useState(true);
   const [showAddGroup, setShowAddGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
+  const [groupError, setGroupError] = useState('');
   const { addGroup } = useApp();
 
   const friends = users.filter(u => u.id !== currentUser.id).slice(0, 4);
@@ -30,20 +31,28 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
 
   const handleCreateGroup = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newGroupName.trim()) return;
+    const trimmed = newGroupName.trim();
+    if (!trimmed) return;
     const emojis = ['🎉', '🏡', '🌍', '💼', '🎭', '🎮'];
     const colors = ['#1cc29f', '#4a6fa5', '#e74c3c', '#9b59b6', '#f39c12'];
-    addGroup({
-      name: newGroupName,
-      emoji: emojis[Math.floor(Math.random() * emojis.length)],
-      color: colors[Math.floor(Math.random() * colors.length)],
-      members: [currentUser.id],
-    });
+    setGroupError('');
+    addGroup(
+      {
+        name: trimmed,
+        emoji: emojis[Math.floor(Math.random() * emojis.length)],
+        color: colors[Math.floor(Math.random() * colors.length)],
+        members: [currentUser.id],
+      },
+      (err) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        setGroupError(msg || 'Failed to create group');
+      }
+    );
     setNewGroupName('');
     setShowAddGroup(false);
   };
 
-  const SidebarContent = () => (
+  const renderSidebarContent = () => (
     <div className="flex flex-col h-full bg-[#0d111a] text-white overflow-y-auto">
       {/* Logo */}
       <div className="flex items-center justify-between px-4 py-4 border-b border-white/5">
@@ -123,6 +132,9 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                 />
                 <button type="submit" className="bg-[#1cc29f] text-white px-2 py-1.5 rounded-lg text-xs">Add</button>
               </div>
+              {groupError && (
+                <p className="px-2 pb-1 text-[10px]" style={{ color: '#FF6B6B' }}>{groupError}</p>
+              )}
             </motion.form>
           )}
         </AnimatePresence>
@@ -261,7 +273,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
       {/* Desktop sidebar */}
       <div className="hidden md:flex w-64 flex-shrink-0 h-screen sticky top-0">
         <div className="w-full border-r border-white/5">
-          <SidebarContent />
+          {renderSidebarContent()}
         </div>
       </div>
 
@@ -283,7 +295,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
               exit={{ x: -288 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             >
-              <SidebarContent />
+              {renderSidebarContent()}
             </motion.div>
           </>
         )}
