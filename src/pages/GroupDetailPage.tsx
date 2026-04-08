@@ -11,6 +11,7 @@ import { useApp } from '../context/AppContext';
 import { AddExpenseModal } from '../components/AddExpenseModal';
 import { SettleUpModal } from '../components/SettleUpModal';
 import { balancesToTransactions } from '../lib/debtSimplify';
+import { Skeleton } from '../components/ui/skeleton';
 
 const CATEGORY_EMOJI: Record<string, string> = {
   food: '🍽️', transport: '🚗', accommodation: '🏨',
@@ -20,7 +21,7 @@ const CATEGORY_EMOJI: Record<string, string> = {
 export function GroupDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getGroupById, getExpensesByGroup, calculateGroupBalances, users, currentUser } = useApp();
+  const { getGroupById, getExpensesByGroup, calculateGroupBalances, users, currentUser, isLoading } = useApp();
   const [addExpenseOpen, setAddExpenseOpen] = useState(false);
   const [settleUpOpen, setSettleUpOpen] = useState(false);
   const [settleTarget, setSettleTarget] = useState<{ userId: string; amount: number; fromUserId?: string } | null>(null);
@@ -173,7 +174,25 @@ export function GroupDetailPage() {
         {/* Content */}
         {activeTab === 'list' ? (
           <div className="px-5 py-4">
-            {Object.entries(expensesByMonth).map(([month, exps]) => (
+            {isLoading ? (
+              <div className="space-y-2">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-4 bg-[#161b27] border border-white/6 rounded-2xl px-4 py-3">
+                    <Skeleton className="w-8 h-8 rounded" />
+                    <Skeleton className="w-10 h-10 rounded-xl" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-3 w-28" />
+                    </div>
+                    <div className="space-y-1 flex flex-col items-end">
+                      <Skeleton className="h-3 w-16" />
+                      <Skeleton className="h-4 w-20" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            {!isLoading && Object.entries(expensesByMonth).map(([month, exps]) => (
               <div key={month} className="mb-6">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-white/50 text-xs uppercase tracking-wider font-medium">{month}</h3>
@@ -255,7 +274,7 @@ export function GroupDetailPage() {
               </div>
             ))}
 
-            {expenses.length === 0 && (
+            {!isLoading && expenses.length === 0 && (
               <div className="text-center py-16">
                 <div className="text-5xl mb-4">{group.emoji}</div>
                 <p className="text-white/40 text-lg mb-2">No expenses yet</p>
@@ -270,7 +289,7 @@ export function GroupDetailPage() {
             )}
 
             {/* Group spending trend — only show when 2+ months of data */}
-            {monthlySpending.length >= 2 && (
+            {!isLoading && monthlySpending.length >= 2 && (
               <motion.div
                 className="mt-6 bg-[#161b27] border border-white/8 rounded-2xl p-4"
                 initial={{ opacity: 0, y: 16 }}
@@ -477,6 +496,21 @@ export function GroupDetailPage() {
 
           <h3 className="text-white/50 text-xs uppercase tracking-wider mb-3">Group Balances</h3>
 
+          {isLoading ? (
+            <div className="space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="w-10 h-10 rounded-full" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-3.5 w-20" />
+                    <Skeleton className="h-3 w-28" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {!isLoading && <>
           {/* Simplify toggle */}
           <div
             className="flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2.5 mb-4 cursor-pointer select-none"
@@ -593,6 +627,7 @@ export function GroupDetailPage() {
                 })
             )}
           </div>
+          </>}
 
           {/* View details link */}
           <button className="mt-5 text-[#1cc29f] text-sm hover:underline w-full text-left">

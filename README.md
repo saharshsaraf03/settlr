@@ -1,73 +1,96 @@
-# React + TypeScript + Vite
+# Settlr
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern expense-splitting app built for groups. Split bills, track who owes what, and settle up — all in real time.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Group expense splitting** — Create groups, add expenses, and split them equally or by custom amounts
+- **Real-time balances** — See who owes what across all your groups instantly
+- **Debt simplification** — Minimizes the number of payments needed to settle a group
+- **Personal expense tracker** — Log and categorize your own spending separately from group bills
+- **Invite system** — Share an invite link to add people to a group
+- **Dashboard analytics** — Overview of total balance, what you owe, and what you're owed
+- **Settle up flows** — Record payments between members to mark debts as settled
+- **Spending trend charts** — Monthly group spending visualized over time
+- **Auth** — Email/password sign-up and login via Supabase Auth
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+| Layer | Technology |
+|---|---|
+| Framework | React 19 + TypeScript |
+| Build | Vite 8 |
+| Styling | Tailwind CSS v4 |
+| UI Components | shadcn/ui (Radix primitives) |
+| Animations | Motion (Framer Motion v12) |
+| Backend / DB | Supabase (Postgres + Auth + RLS) |
+| Data fetching | TanStack Query v5 |
+| Routing | React Router v7 |
+| Charts | Recharts |
+| Notifications | Sonner |
+| Forms | React Hook Form + Zod |
 
-## Expanding the ESLint configuration
+## Local Development
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Prerequisites
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- Node.js 18+
+- A [Supabase](https://supabase.com) project (free tier works)
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### 1. Clone and install
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+git clone <your-repo-url>
+cd settlr
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 2. Set up environment variables
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Create a `.env.local` file at the project root:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```env
+VITE_SUPABASE_URL=https://your-project-id.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
 ```
+
+Find these values in your Supabase dashboard under **Project Settings → API**.
+
+### 3. Set up the database
+
+Run the SQL migrations in your Supabase SQL editor (in order):
+
+- `profiles` — user display names and avatars
+- `groups` — expense groups with invite codes
+- `group_members` — membership join table
+- `expenses` — group expenses
+- `expense_splits` — per-member split amounts
+- `categories` — personal expense categories
+- `personal_expenses` — personal spending records
+
+Enable Row Level Security (RLS) on all tables and add policies so users can only read/write their own data.
+
+### 4. Start the dev server
+
+```bash
+npm run dev
+```
+
+The app runs at `http://localhost:5173`.
+
+### Build for production
+
+```bash
+npm run build
+```
+
+Output goes to `dist/`.
+
+## Environment Variables
+
+| Variable | Description |
+|---|---|
+| `VITE_SUPABASE_URL` | Your Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Your Supabase anon/public API key |
+
+These are safe to expose in the browser — Supabase RLS policies enforce data access at the database level.

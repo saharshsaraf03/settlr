@@ -16,6 +16,7 @@ function getAvatarColor(index: number): string {
 
 interface AppContextType {
   isLoggedIn: boolean;
+  isLoading: boolean;
   currentUser: User;
   users: User[];
   expenses: Expense[];
@@ -54,7 +55,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     initials: 'GU',
   };
 
-  const { data: groupsData = [] } = useQuery({
+  const { data: groupsData = [], isLoading: groupsLoading } = useQuery({
     queryKey: ['groups', user?.id],
     enabled: !!user,
     retry: false,
@@ -270,9 +271,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return { totalOwe, totalOwed };
   };
 
+  const isLoading = groupsLoading;
+
   return (
     <AppContext.Provider value={{
       isLoggedIn,
+      isLoading,
       currentUser,
       users: usersData,
       expenses: expensesData,
