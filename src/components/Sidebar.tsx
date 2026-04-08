@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { LayoutDashboard, Activity, List, Plus, ChevronDown, User, Mail, Send, LogOut, X } from 'lucide-react';
+import { LayoutDashboard, Activity, Wallet, Plus, ChevronDown, User, Mail, Send, LogOut, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -26,7 +26,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const navItems = [
     { icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard', path: '/dashboard' },
     { icon: <Activity className="w-4 h-4" />, label: 'Recent activity', path: '/activity' },
-    { icon: <List className="w-4 h-4" />, label: 'All expenses', path: '/expenses' },
+    { icon: <Wallet className="w-4 h-4" />, label: 'My Expenses', path: '/expenses' },
   ];
 
   const handleCreateGroup = (e: React.FormEvent) => {

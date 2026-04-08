@@ -2,17 +2,19 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ArrowRight, Check } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { balancesToTransactions } from '../lib/debtSimplify';
 
 interface SettleUpModalProps {
   isOpen: boolean;
   onClose: () => void;
   groupId?: string;
   defaultToUserId?: string;
+  defaultFromUserId?: string;
   defaultAmount?: number;
 }
 
-export function SettleUpModal({ isOpen, onClose, groupId, defaultToUserId, defaultAmount = 0 }: SettleUpModalProps) {
-  const { users, currentUser, groups, settleUp } = useApp();
+export function SettleUpModal({ isOpen, onClose, groupId, defaultToUserId, defaultFromUserId, defaultAmount = 0 }: SettleUpModalProps) {
+  const { users, currentUser, groups, settleUp, calculateGroupBalances } = useApp();
   const [toUserId, setToUserId] = useState(defaultToUserId || '');
   const [amount, setAmount] = useState(defaultAmount > 0 ? defaultAmount.toFixed(2) : '');
   const [loading, setLoading] = useState(false);
@@ -22,6 +24,14 @@ export function SettleUpModal({ isOpen, onClose, groupId, defaultToUserId, defau
   const availableUsers = group
     ? users.filter(u => group.members.includes(u.id) && u.id !== currentUser.id)
     : users.filter(u => u.id !== currentUser.id);
+
+  // Simplified transactions for this group (only those involving current user)
+  const groupBalances = groupId ? calculateGroupBalances(groupId) : [];
+  const suggestedTransactions = balancesToTransactions(groupBalances).filter(
+    tx => tx.from === currentUser.id || tx.to === currentUser.id,
+  );
+
+  const fromUser = defaultFromUserId ? users.find(u => u.id === defaultFromUserId) : null;
 
   const handleSubmit = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
@@ -69,16 +79,66 @@ export function SettleUpModal({ isOpen, onClose, groupId, defaultToUserId, defau
             </div>
 
             <form onSubmit={handleSubmit} className="p-5 space-y-5">
+              {/* Suggested transactions (simplified debts) */}
+              {!defaultToUserId && suggestedTransactions.length > 0 && (
+                <div className="bg-white/4 rounded-xl p-3 space-y-2">
+                  <p className="text-white/40 text-xs uppercase tracking-wider mb-2">Suggested payments</p>
+                  {suggestedTransactions.map((tx, i) => {
+                    const txFrom = users.find(u => u.id === tx.from);
+                    const txTo = users.find(u => u.id === tx.to);
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => {
+                          setToUserId(tx.to);
+                          setAmount(tx.amount.toFixed(2));
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-white/5 hover:bg-[#1cc29f]/10 hover:border-[#1cc29f]/20 border border-transparent transition-all text-left"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: txFrom?.avatarColor }}>
+                            {txFrom?.initials?.[0]}
+                          </div>
+                          <ArrowRight className="w-3 h-3 text-white/30" />
+                          <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: txTo?.avatarColor }}>
+                            {txTo?.initials?.[0]}
+                          </div>
+                        </div>
+                        <span className="text-white/60 text-xs flex-1">
+                          {tx.from === currentUser.id ? 'You' : txFrom?.name} → {tx.to === currentUser.id ? 'you' : txTo?.name}
+                        </span>
+                        <span className="text-[#1cc29f] text-xs font-semibold">₹{tx.amount.toFixed(2)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
               {/* Payment flow visualization */}
               <div className="flex items-center justify-center gap-4 py-4">
                 <div className="flex flex-col items-center gap-2">
-                  <div
-                    className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-lg ring-2 ring-[#1cc29f]/50"
-                    style={{ backgroundColor: currentUser.avatarColor }}
-                  >
-                    {currentUser.initials}
-                  </div>
-                  <span className="text-white/60 text-sm">You</span>
+                  {fromUser ? (
+                    <>
+                      <div
+                        className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-lg ring-2 ring-white/20"
+                        style={{ backgroundColor: fromUser.avatarColor }}
+                      >
+                        {fromUser.initials}
+                      </div>
+                      <span className="text-white/60 text-sm">{fromUser.name}</span>
+                    </>
+                  ) : (
+                    <>
+                      <div
+                        className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-lg ring-2 ring-[#1cc29f]/50"
+                        style={{ backgroundColor: currentUser.avatarColor }}
+                      >
+                        {currentUser.initials}
+                      </div>
+                      <span className="text-white/60 text-sm">You</span>
+                    </>
+                  )}
                 </div>
                 <div className="flex flex-col items-center gap-1">
                   <div className="flex items-center gap-1">

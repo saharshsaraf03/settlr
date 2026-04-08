@@ -4,6 +4,7 @@ import { TrendingUp, TrendingDown, Minus, ArrowRight, PlusCircle } from 'lucide-
 import { useApp } from '../context/AppContext';
 import { AddExpenseModal } from '../components/AddExpenseModal';
 import { SettleUpModal } from '../components/SettleUpModal';
+import { PersonalSpendingWidget } from '../components/PersonalSpendingWidget';
 import { useNavigate } from 'react-router-dom';
 
 function StatCard({ label, amount, type, delay = 0 }: {
@@ -248,8 +249,10 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {/* Right panel - Groups summary */}
+        {/* Right panel - Personal widget + Groups summary */}
         <div className="space-y-4">
+          <PersonalSpendingWidget />
+
           <div className="flex items-center justify-between">
             <h2 className="text-white font-semibold">Your groups</h2>
           </div>

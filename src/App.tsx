@@ -5,6 +5,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AppLayout } from '@/components/AppLayout'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { GroupDetailPage } from '@/pages/GroupDetailPage'
+import { MyExpensesPage } from '@/pages/MyExpensesPage'
 import { useAuth } from '@/context/AuthContext'
 
 function RootRoute() {
@@ -71,7 +72,7 @@ function App() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<div className="p-8 text-white">All Expenses coming soon</div>} />
+        <Route index element={<MyExpensesPage />} />
       </Route>
     </Routes>
   )

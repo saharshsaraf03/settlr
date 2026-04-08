@@ -1,10 +1,15 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, PlusCircle, Settings, List, BarChart2, Calendar, MessageCircle, Check } from 'lucide-react';
+import { ArrowLeft, PlusCircle, Settings, List, BarChart2, Calendar, MessageCircle, Check, ArrowRight } from 'lucide-react';
+import {
+  ResponsiveContainer, LineChart, Line,
+  XAxis, YAxis, CartesianGrid, Tooltip,
+} from 'recharts';
 import { useApp } from '../context/AppContext';
 import { AddExpenseModal } from '../components/AddExpenseModal';
 import { SettleUpModal } from '../components/SettleUpModal';
+import { balancesToTransactions } from '../lib/debtSimplify';
 
 const CATEGORY_EMOJI: Record<string, string> = {
   food: '🍽️', transport: '🚗', accommodation: '🏨',
@@ -17,7 +22,7 @@ export function GroupDetailPage() {
   const { getGroupById, getExpensesByGroup, calculateGroupBalances, users, currentUser } = useApp();
   const [addExpenseOpen, setAddExpenseOpen] = useState(false);
   const [settleUpOpen, setSettleUpOpen] = useState(false);
-  const [settleTarget, setSettleTarget] = useState<{ userId: string; amount: number } | null>(null);
+  const [settleTarget, setSettleTarget] = useState<{ userId: string; amount: number; fromUserId?: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'list' | 'balances'>('list');
   const [simplifyDebts, setSimplifyDebts] = useState(true);
 
@@ -50,10 +55,28 @@ export function GroupDetailPage() {
     expensesByMonth[key].push(exp);
   });
 
-  const handleSettleWithUser = (userId: string, amount: number) => {
-    setSettleTarget({ userId, amount });
+  const handleSettleWithUser = (userId: string, amount: number, fromUserId?: string) => {
+    setSettleTarget({ userId, amount, fromUserId });
     setSettleUpOpen(true);
   };
+
+  const simplifiedTransactions = balancesToTransactions(balances);
+
+  // Monthly spending data for the line chart
+  const monthlySpending = (() => {
+    const byMonth: Record<string, number> = {};
+    expenses.forEach(exp => {
+      const d = new Date(exp.date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      byMonth[key] = (byMonth[key] ?? 0) + exp.amount;
+    });
+    return Object.entries(byMonth)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, total]) => ({
+        month: new Date(key + '-01').toLocaleString('en', { month: 'short', year: '2-digit' }),
+        total: Math.round(total),
+      }));
+  })();
 
   return (
     <div className="flex flex-col lg:flex-row h-full">
@@ -221,64 +244,187 @@ export function GroupDetailPage() {
                 </button>
               </div>
             )}
+
+            {/* Group spending trend — only show when 2+ months of data */}
+            {monthlySpending.length >= 2 && (
+              <motion.div
+                className="mt-6 bg-[#161b27] border border-white/8 rounded-2xl p-4"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-white/80 text-sm font-semibold">Spending trend</p>
+                    <p className="text-white/35 text-xs">Monthly group total</p>
+                  </div>
+                  <div
+                    className="text-xs font-medium px-2 py-1 rounded-lg"
+                    style={{ backgroundColor: `${group.color}18`, color: group.color }}
+                  >
+                    {monthlySpending.length} months
+                  </div>
+                </div>
+                <ResponsiveContainer width="100%" height={160}>
+                  <LineChart data={monthlySpending} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={v => `₹${(v / 1000).toFixed(0)}k`}
+                    />
+                    <Tooltip
+                      content={({ active, payload, label }) => {
+                        if (!active || !payload?.length) return null;
+                        return (
+                          <div className="bg-[#1a2035] border border-white/10 rounded-xl px-3 py-2 text-xs shadow-xl">
+                            <p className="text-white/50 mb-0.5">{label}</p>
+                            <p className="font-semibold" style={{ color: group.color }}>
+                              ₹{Number(payload[0].value).toLocaleString('en-IN')}
+                            </p>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="total"
+                      stroke={group.color}
+                      strokeWidth={2}
+                      dot={{ fill: group.color, strokeWidth: 0, r: 3 }}
+                      activeDot={{ r: 5, strokeWidth: 0 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </motion.div>
+            )}
           </div>
         ) : (
           // Balances tab
-          <div className="px-5 py-4">
-            <div className="grid sm:grid-cols-2 gap-4">
-              {groupMembers.map((member, i) => {
-                const bal = balances.find(b => b.userId === member.id);
-                const amount = bal?.amount || 0;
-                return (
-                  <motion.div
-                    key={member.id}
-                    className="bg-[#161b27] border border-white/8 rounded-2xl p-4 hover:border-white/15 transition-all"
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.07 }}
-                  >
-                    <div className="flex items-center gap-3 mb-3">
+          <div className="px-5 py-4 space-y-4">
+            {simplifyDebts && simplifiedTransactions.length > 0 ? (
+              <>
+                <p className="text-white/35 text-xs uppercase tracking-wider">Simplified · {simplifiedTransactions.length} payment{simplifiedTransactions.length !== 1 ? 's' : ''}</p>
+                {simplifiedTransactions.map((tx, i) => {
+                  const fromUser = users.find(u => u.id === tx.from);
+                  const toUser = users.find(u => u.id === tx.to);
+                  const involveMe = tx.from === currentUser.id || tx.to === currentUser.id;
+                  return (
+                    <motion.div
+                      key={i}
+                      className={`flex items-center gap-4 rounded-2xl px-4 py-3 border transition-all ${
+                        involveMe
+                          ? 'bg-[#1cc29f]/8 border-[#1cc29f]/20'
+                          : 'bg-[#161b27] border-white/6'
+                      }`}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.06 }}
+                    >
                       <div
-                        className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold shadow-lg"
-                        style={{ backgroundColor: member.avatarColor }}
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+                        style={{ backgroundColor: fromUser?.avatarColor }}
                       >
-                        {member.initials}
+                        {fromUser?.initials}
                       </div>
-                      <div>
-                        <p className="text-white/85 font-medium text-sm">{member.id === currentUser.id ? 'You' : member.name}</p>
-                        <p className="text-white/35 text-xs">{member.email}</p>
+                      <ArrowRight className="w-4 h-4 text-white/30 flex-shrink-0" />
+                      <div
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+                        style={{ backgroundColor: toUser?.avatarColor }}
+                      >
+                        {toUser?.initials}
                       </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      {Math.abs(amount) < 0.01 ? (
-                        <div className="flex items-center gap-1.5">
-                          <Check className="w-4 h-4 text-[#1cc29f]" />
-                          <span className="text-white/40 text-sm">settled up</span>
-                        </div>
-                      ) : amount > 0 ? (
-                        <div>
-                          <p className="text-white/35 text-xs">gets back</p>
-                          <p className="text-[#1cc29f] font-semibold">₹{amount.toFixed(2)}</p>
-                        </div>
-                      ) : (
-                        <div>
-                          <p className="text-white/35 text-xs">owes</p>
-                          <p className="text-[#f97316] font-semibold">₹{Math.abs(amount).toFixed(2)}</p>
-                        </div>
-                      )}
-                      {member.id !== currentUser.id && Math.abs(amount) > 0.01 && (
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white/80 text-sm">
+                          <span className="font-medium">{tx.from === currentUser.id ? 'You' : fromUser?.name}</span>
+                          <span className="text-white/40"> pays </span>
+                          <span className="font-medium">{tx.to === currentUser.id ? 'you' : toUser?.name}</span>
+                        </p>
+                        <p className={`text-sm font-semibold ${involveMe ? 'text-[#1cc29f]' : 'text-white/60'}`}>
+                          ₹{tx.amount.toFixed(2)}
+                        </p>
+                      </div>
+                      {(tx.from === currentUser.id || tx.to === currentUser.id) && (
                         <button
-                          onClick={() => handleSettleWithUser(member.id, Math.abs(amount))}
-                          className="text-xs bg-[#1cc29f]/10 hover:bg-[#1cc29f]/20 text-[#1cc29f] px-3 py-1.5 rounded-lg border border-[#1cc29f]/20 transition-all"
+                          onClick={() => handleSettleWithUser(tx.to, tx.amount, tx.from)}
+                          className="text-xs bg-[#1cc29f]/10 hover:bg-[#1cc29f]/20 text-[#1cc29f] px-3 py-1.5 rounded-lg border border-[#1cc29f]/20 transition-all flex-shrink-0"
                         >
                           Settle
                         </button>
                       )}
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
+                    </motion.div>
+                  );
+                })}
+              </>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-4">
+                {groupMembers.map((member, i) => {
+                  const bal = balances.find(b => b.userId === member.id);
+                  const amount = bal?.amount || 0;
+                  return (
+                    <motion.div
+                      key={member.id}
+                      className="bg-[#161b27] border border-white/8 rounded-2xl p-4 hover:border-white/15 transition-all"
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.07 }}
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <div
+                          className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold shadow-lg"
+                          style={{ backgroundColor: member.avatarColor }}
+                        >
+                          {member.initials}
+                        </div>
+                        <div>
+                          <p className="text-white/85 font-medium text-sm">{member.id === currentUser.id ? 'You' : member.name}</p>
+                          <p className="text-white/35 text-xs">{member.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        {Math.abs(amount) < 0.01 ? (
+                          <div className="flex items-center gap-1.5">
+                            <Check className="w-4 h-4 text-[#1cc29f]" />
+                            <span className="text-white/40 text-sm">settled up</span>
+                          </div>
+                        ) : amount > 0 ? (
+                          <div>
+                            <p className="text-white/35 text-xs">gets back</p>
+                            <p className="text-[#1cc29f] font-semibold">₹{amount.toFixed(2)}</p>
+                          </div>
+                        ) : (
+                          <div>
+                            <p className="text-white/35 text-xs">owes</p>
+                            <p className="text-[#f97316] font-semibold">₹{Math.abs(amount).toFixed(2)}</p>
+                          </div>
+                        )}
+                        {member.id !== currentUser.id && Math.abs(amount) > 0.01 && (
+                          <button
+                            onClick={() => handleSettleWithUser(member.id, Math.abs(amount))}
+                            className="text-xs bg-[#1cc29f]/10 hover:bg-[#1cc29f]/20 text-[#1cc29f] px-3 py-1.5 rounded-lg border border-[#1cc29f]/20 transition-all"
+                          >
+                            Settle
+                          </button>
+                        )}
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+            {simplifyDebts && simplifiedTransactions.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-12 gap-3">
+                <Check className="w-10 h-10 text-[#1cc29f]" />
+                <p className="text-white/50 text-sm">Everyone is settled up</p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -323,53 +469,105 @@ export function GroupDetailPage() {
 
           {/* Balance list */}
           <div className="space-y-3">
-            {balances
-              .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
-              .map((bal, i) => {
-                const user = users.find(u => u.id === bal.userId);
-                if (!user) return null;
-
-                return (
-                  <motion.div
-                    key={bal.userId}
-                    className="flex items-center gap-3"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 + i * 0.07 }}
-                  >
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-sm"
-                      style={{ backgroundColor: user.avatarColor }}
+            {simplifyDebts ? (
+              simplifiedTransactions.length === 0 ? (
+                <div className="flex items-center gap-2 text-white/30 text-xs py-2">
+                  <Check className="w-4 h-4 text-[#1cc29f]" />
+                  Everyone is settled up
+                </div>
+              ) : (
+                simplifiedTransactions.map((tx, i) => {
+                  const fromUser = users.find(u => u.id === tx.from);
+                  const toUser = users.find(u => u.id === tx.to);
+                  return (
+                    <motion.div
+                      key={i}
+                      className="flex items-center gap-2"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.1 + i * 0.07 }}
                     >
-                      {user.initials}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white/80 text-sm font-medium truncate">
-                        {bal.userId === currentUser.id ? 'You' : user.name}
-                      </p>
-                      {Math.abs(bal.amount) < 0.01 ? (
-                        <p className="text-white/30 text-xs">settled up</p>
-                      ) : bal.amount > 0 ? (
-                        <p className="text-[#1cc29f] text-xs font-medium">
-                          gets back ₹{bal.amount.toFixed(2)}
-                        </p>
-                      ) : (
-                        <p className="text-[#f97316] text-xs font-medium">
-                          owes ₹{Math.abs(bal.amount).toFixed(2)}
-                        </p>
-                      )}
-                    </div>
-                    {bal.userId !== currentUser.id && Math.abs(bal.amount) > 0.01 && (
-                      <button
-                        onClick={() => handleSettleWithUser(bal.userId, Math.abs(bal.amount))}
-                        className="w-7 h-7 bg-white/5 hover:bg-[#1cc29f]/20 rounded-lg flex items-center justify-center text-white/30 hover:text-[#1cc29f] transition-all"
+                      <div
+                        className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                        style={{ backgroundColor: fromUser?.avatarColor }}
                       >
-                        <Check className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </motion.div>
-                );
-              })}
+                        {fromUser?.initials?.[0]}
+                      </div>
+                      <ArrowRight className="w-3 h-3 text-white/25 flex-shrink-0" />
+                      <div
+                        className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                        style={{ backgroundColor: toUser?.avatarColor }}
+                      >
+                        {toUser?.initials?.[0]}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white/70 text-xs truncate">
+                          {tx.from === currentUser.id ? 'You' : fromUser?.name}
+                          {' → '}
+                          {tx.to === currentUser.id ? 'you' : toUser?.name}
+                        </p>
+                        <p className="text-[#1cc29f] text-xs font-medium">₹{tx.amount.toFixed(2)}</p>
+                      </div>
+                      {(tx.from === currentUser.id || tx.to === currentUser.id) && (
+                        <button
+                          onClick={() => handleSettleWithUser(tx.to, tx.amount, tx.from)}
+                          className="w-7 h-7 bg-white/5 hover:bg-[#1cc29f]/20 rounded-lg flex items-center justify-center text-white/30 hover:text-[#1cc29f] transition-all"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </motion.div>
+                  );
+                })
+              )
+            ) : (
+              balances
+                .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
+                .map((bal, i) => {
+                  const user = users.find(u => u.id === bal.userId);
+                  if (!user) return null;
+                  return (
+                    <motion.div
+                      key={bal.userId}
+                      className="flex items-center gap-3"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.1 + i * 0.07 }}
+                    >
+                      <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-sm"
+                        style={{ backgroundColor: user.avatarColor }}
+                      >
+                        {user.initials}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white/80 text-sm font-medium truncate">
+                          {bal.userId === currentUser.id ? 'You' : user.name}
+                        </p>
+                        {Math.abs(bal.amount) < 0.01 ? (
+                          <p className="text-white/30 text-xs">settled up</p>
+                        ) : bal.amount > 0 ? (
+                          <p className="text-[#1cc29f] text-xs font-medium">
+                            gets back ₹{bal.amount.toFixed(2)}
+                          </p>
+                        ) : (
+                          <p className="text-[#f97316] text-xs font-medium">
+                            owes ₹{Math.abs(bal.amount).toFixed(2)}
+                          </p>
+                        )}
+                      </div>
+                      {bal.userId !== currentUser.id && Math.abs(bal.amount) > 0.01 && (
+                        <button
+                          onClick={() => handleSettleWithUser(bal.userId, Math.abs(bal.amount))}
+                          className="w-7 h-7 bg-white/5 hover:bg-[#1cc29f]/20 rounded-lg flex items-center justify-center text-white/30 hover:text-[#1cc29f] transition-all"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </motion.div>
+                  );
+                })
+            )}
           </div>
 
           {/* View details link */}
@@ -409,6 +607,7 @@ export function GroupDetailPage() {
         onClose={() => { setSettleUpOpen(false); setSettleTarget(null); }}
         groupId={group.id}
         defaultToUserId={settleTarget?.userId}
+        defaultFromUserId={settleTarget?.fromUserId}
         defaultAmount={settleTarget?.amount || 0}
       />
     </div>
