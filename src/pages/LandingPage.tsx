@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { AuthModal } from '../components/AuthModal';
 import { motion, AnimatePresence, useInView } from 'motion/react';
 import { Plane, Home, Heart, Star, Users, TrendingUp, Shield, Zap, ChevronRight, Menu, X } from 'lucide-react';
 import type { JSX } from 'react';
@@ -302,8 +302,14 @@ function BalancePreview() {
 }
 
 export function LandingPage() {
-  const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+
+  const openAuth = (mode: 'login' | 'signup') => {
+    setAuthMode(mode);
+    setAuthOpen(true);
+  };
 
   const featuresRef = useRef(null);
   const howItWorksRef = useRef(null);
@@ -333,13 +339,13 @@ export function LandingPage() {
           </div>
           <div className="hidden md:flex items-center justify-end gap-3">
             <button
-              onClick={() => navigate('/login')}
+              onClick={() => openAuth('login')}
               className="text-white/70 hover:text-white text-sm px-4 py-2 rounded-xl transition-colors"
             >
               Log in
             </button>
             <motion.button
-              onClick={() => navigate('/signup')}
+              onClick={() => openAuth('signup')}
               className="bg-[#1cc29f] hover:bg-[#16a589] text-white text-sm px-5 py-2 rounded-xl font-medium transition-colors shadow-lg shadow-[#1cc29f]/20"
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
@@ -365,13 +371,13 @@ export function LandingPage() {
                 <a href="#how-it-works" className="block text-white/60 py-2">How it works</a>
                 <div className="flex gap-3 pt-2">
                   <button
-                    onClick={() => { setMobileMenuOpen(false); navigate('/login'); }}
+                    onClick={() => { setMobileMenuOpen(false); openAuth('login'); }}
                     className="flex-1 bg-white/5 text-white py-2.5 rounded-xl text-sm"
                   >
                     Log in
                   </button>
                   <button
-                    onClick={() => { setMobileMenuOpen(false); navigate('/signup'); }}
+                    onClick={() => { setMobileMenuOpen(false); openAuth('signup'); }}
                     className="flex-1 bg-[#1cc29f] text-white py-2.5 rounded-xl text-sm font-medium"
                   >
                     Sign up
@@ -466,7 +472,7 @@ export function LandingPage() {
                 transition={{ duration: 0.6, delay: 0.65 }}
               >
                 <motion.button
-                  onClick={() => navigate('/signup')}
+                  onClick={() => openAuth('signup')}
                   className="flex items-center gap-2 bg-[#1cc29f] hover:bg-[#16a589] text-white px-8 py-4 rounded-2xl font-semibold text-lg transition-colors shadow-lg shadow-[#1cc29f]/25"
                   whileHover={{ scale: 1.03, y: -2 }}
                   whileTap={{ scale: 0.97 }}
@@ -475,7 +481,7 @@ export function LandingPage() {
                   <ChevronRight className="w-5 h-5" />
                 </motion.button>
                 <motion.button
-                  onClick={() => navigate('/login')}
+                  onClick={() => openAuth('login')}
                   className="flex items-center gap-2 bg-white/8 hover:bg-white/12 text-white px-8 py-4 rounded-2xl font-medium text-lg border border-white/10 transition-all"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -725,7 +731,7 @@ export function LandingPage() {
               Join thousands of groups already using Settlr to keep finances stress-free.
             </p>
             <motion.button
-              onClick={() => navigate('/signup')}
+              onClick={() => openAuth('signup')}
               className="inline-flex items-center gap-3 bg-[#1cc29f] hover:bg-[#16a589] text-white px-10 py-4 rounded-2xl font-semibold text-xl transition-colors shadow-2xl shadow-[#1cc29f]/30"
               whileHover={{ scale: 1.05, y: -3 }}
               whileTap={{ scale: 0.97 }}
@@ -755,6 +761,12 @@ export function LandingPage() {
           </div>
         </div>
       </footer>
+
+      <AuthModal
+        isOpen={authOpen}
+        onClose={() => setAuthOpen(false)}
+        defaultMode={authMode}
+      />
     </div>
   );
 }

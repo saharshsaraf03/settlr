@@ -61,11 +61,11 @@ export function SetupProfilePage() {
     if (!user) return
     setApiError('')
 
-    const { error } = await supabase.from('profiles').insert({
+    const { error } = await supabase.from('profiles').upsert({
       id: user.id,
       display_name: values.displayName,
       avatar_id: selectedAvatar,
-    })
+    }, { onConflict: 'id' })
 
     if (error) {
       setApiError(error.message)

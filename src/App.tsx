@@ -5,11 +5,24 @@ import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AppLayout } from '@/components/AppLayout'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { GroupDetailPage } from '@/pages/GroupDetailPage'
+import { useAuth } from '@/context/AuthContext'
+
+function RootRoute() {
+  const { user, loading } = useAuth()
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-white/10 border-t-[#1cc29f] rounded-full animate-spin" />
+      </div>
+    )
+  }
+  return user ? <Navigate to="/dashboard" replace /> : <LandingPage />
+}
 
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<LandingPage />} />
+      <Route path="/" element={<RootRoute />} />
       <Route path="/login" element={<Navigate to="/" replace />} />
       <Route path="/signup" element={<Navigate to="/" replace />} />
       <Route

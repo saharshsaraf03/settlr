@@ -32,21 +32,11 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
         if (authError) throw authError;
         onClose();
       } else {
-        const { data, error: authError } = await supabase.auth.signUp({
+        const { error: authError } = await supabase.auth.signUp({
           email: form.email,
           password: form.password,
-          options: {
-            data: { display_name: form.name },
-          },
         });
         if (authError) throw authError;
-        if (data.user) {
-          await supabase.from('profiles').insert({
-            id: data.user.id,
-            display_name: form.name,
-            avatar_id: 'default',
-          });
-        }
         onClose();
         navigate('/setup-profile');
       }

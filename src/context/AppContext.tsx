@@ -57,6 +57,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const { data: groupsData = [] } = useQuery({
     queryKey: ['groups', user?.id],
     enabled: !!user,
+    retry: false,
     queryFn: async () => {
       const { data: memberRows } = await supabase
         .from('group_members')
@@ -94,6 +95,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const { data: usersData = [] } = useQuery({
     queryKey: ['users', groupsData.map(g => g.id).join(',')],
     enabled: groupsData.length > 0,
+    retry: false,
     queryFn: async () => {
       const allMemberIds = [...new Set(groupsData.flatMap(g => g.members))];
       if (!allMemberIds.length) return [];
@@ -114,6 +116,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const { data: expensesData = [] } = useQuery({
     queryKey: ['expenses', groupsData.map(g => g.id).join(',')],
     enabled: groupsData.length > 0,
+    retry: false,
     queryFn: async () => {
       const groupIds = groupsData.map(g => g.id);
       if (!groupIds.length) return [];

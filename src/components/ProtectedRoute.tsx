@@ -20,7 +20,7 @@ export function ProtectedRoute({ children, requireProfile = true }: ProtectedRou
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/" replace />
   }
 
   if (requireProfile && !profile) {
