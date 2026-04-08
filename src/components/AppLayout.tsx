@@ -1,15 +1,62 @@
-import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Menu, Bell, Plus } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Sidebar } from './Sidebar';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { AddExpenseModal } from './AddExpenseModal';
+
+const PENDING_INVITE_KEY = 'pendingInvite';
 
 export function AppLayout() {
   const { currentUser } = useApp();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [addExpenseOpen, setAddExpenseOpen] = useState(false);
+  const processedRef = useRef(false);
+
+  // Handle pending invite from the signup → profile-setup → dashboard flow.
+  // JoinGroupPage stores the invite code in sessionStorage; we pick it up here
+  // once the user is authenticated and the layout mounts.
+  useEffect(() => {
+    if (!user || processedRef.current) return;
+    const code = sessionStorage.getItem(PENDING_INVITE_KEY);
+    if (!code) return;
+    processedRef.current = true;
+
+    (async () => {
+      sessionStorage.removeItem(PENDING_INVITE_KEY);
+      const { data: group } = await supabase
+        .from('groups')
+        .select('id')
+        .eq('invite_code', code)
+        .maybeSingle();
+      if (!group) return;
+
+      const { data: existing } = await supabase
+        .from('group_members')
+        .select('user_id')
+        .eq('group_id', group.id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!existing) {
+        await supabase.from('group_members').insert({
+          group_id: group.id,
+          user_id: user.id,
+          role: 'member',
+        });
+        qc.invalidateQueries({ queryKey: ['groups'] });
+      }
+
+      navigate(`/groups/${group.id}`, { replace: true });
+    })();
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="flex h-screen bg-[#0a0e1a] overflow-hidden">

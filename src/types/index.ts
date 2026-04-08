@@ -48,4 +48,5 @@ export interface Group {
   color: string;
   members: string[];
   expenses: string[];
+  invite_code?: string;
 }

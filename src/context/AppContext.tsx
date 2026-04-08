@@ -86,6 +86,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           color: g.color || '#1cc29f',
           members: members?.map(m => m.user_id) || [],
           expenses: expenses?.map(e => e.id) || [],
+          invite_code: g.invite_code ?? undefined,
         });
       }
       return result;

@@ -6,6 +6,7 @@ import { AppLayout } from '@/components/AppLayout'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { GroupDetailPage } from '@/pages/GroupDetailPage'
 import { MyExpensesPage } from '@/pages/MyExpensesPage'
+import { JoinGroupPage } from '@/pages/JoinGroupPage'
 import { useAuth } from '@/context/AuthContext'
 
 function RootRoute() {
@@ -74,6 +75,8 @@ function App() {
       >
         <Route index element={<MyExpensesPage />} />
       </Route>
+      {/* Public route — handles both authed and unauthed users */}
+      <Route path="/join/:inviteCode" element={<JoinGroupPage />} />
     </Routes>
   )
 }

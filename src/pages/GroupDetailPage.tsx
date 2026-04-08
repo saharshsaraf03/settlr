@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, PlusCircle, Settings, List, BarChart2, Calendar, MessageCircle, Check, ArrowRight } from 'lucide-react';
+import { ArrowLeft, PlusCircle, Settings, List, BarChart2, Calendar, MessageCircle, Check, ArrowRight, Link2, Copy, X } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   ResponsiveContainer, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -25,6 +26,7 @@ export function GroupDetailPage() {
   const [settleTarget, setSettleTarget] = useState<{ userId: string; amount: number; fromUserId?: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'list' | 'balances'>('list');
   const [simplifyDebts, setSimplifyDebts] = useState(true);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   const group = getGroupById(id || '');
 
@@ -54,6 +56,16 @@ export function GroupDetailPage() {
     if (!expensesByMonth[key]) expensesByMonth[key] = [];
     expensesByMonth[key].push(exp);
   });
+
+  const inviteLink = group.invite_code
+    ? `${window.location.origin}/join/${group.invite_code}`
+    : null;
+
+  const copyInviteLink = () => {
+    if (!inviteLink) return;
+    navigator.clipboard.writeText(inviteLink);
+    toast.success('Invite link copied!', { description: 'Share it with anyone you want to add to this group.' });
+  };
 
   const handleSettleWithUser = (userId: string, amount: number, fromUserId?: string) => {
     setSettleTarget({ userId, amount, fromUserId });
@@ -121,6 +133,18 @@ export function GroupDetailPage() {
               >
                 Settle up
               </motion.button>
+              {inviteLink && (
+                <motion.button
+                  onClick={copyInviteLink}
+                  className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white/85 border border-white/8 px-3 py-2 rounded-xl text-sm transition-all"
+                  title="Copy invite link"
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  <Link2 className="w-4 h-4" />
+                  <span className="hidden sm:inline">Invite</span>
+                </motion.button>
+              )}
             </div>
           </div>
 
@@ -579,20 +603,52 @@ export function GroupDetailPage() {
           <div className="mt-6">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-white/50 text-xs uppercase tracking-wider">Members</h3>
-              <button className="text-[#1cc29f] text-xs hover:underline">+ Add</button>
+              {inviteLink && (
+                <button
+                  onClick={() => setInviteOpen(!inviteOpen)}
+                  className="text-[#1cc29f] text-xs hover:underline flex items-center gap-1"
+                >
+                  {inviteOpen ? <X className="w-3 h-3" /> : '+ Add'}
+                </button>
+              )}
             </div>
+
+            {/* Invite link panel */}
+            {inviteOpen && inviteLink && (
+              <motion.div
+                className="mb-3 bg-white/4 rounded-xl p-3 border border-white/8"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+              >
+                <p className="text-white/50 text-xs mb-2">Share this link to invite someone:</p>
+                <div className="flex items-center gap-2 bg-[#0d111a] rounded-lg px-2.5 py-2 border border-white/8">
+                  <p className="text-white/40 text-[10px] flex-1 truncate font-mono">{inviteLink}</p>
+                  <button
+                    onClick={copyInviteLink}
+                    className="flex items-center gap-1 text-[#1cc29f] hover:text-[#1aad8e] text-xs font-medium flex-shrink-0 transition-colors"
+                  >
+                    <Copy className="w-3 h-3" />
+                    Copy
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
             <div className="space-y-2">
               {groupMembers.map(m => (
                 <div key={m.id} className="flex items-center gap-2.5">
                   <div
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
                     style={{ backgroundColor: m.avatarColor }}
                   >
                     {m.initials[0]}
                   </div>
-                  <span className="text-white/60 text-sm">{m.id === currentUser.id ? 'You' : m.name}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white/70 text-sm truncate">{m.name}</p>
+                  </div>
                   {m.id === currentUser.id && (
-                    <span className="text-white/20 text-xs">(you)</span>
+                    <span className="text-white/25 text-[10px] flex-shrink-0">you</span>
                   )}
                 </div>
               ))}
